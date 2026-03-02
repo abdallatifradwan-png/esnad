@@ -18,10 +18,11 @@
                 extend: {
                     fontFamily: { sans: ['Tajawal', 'sans-serif'] },
                     colors: { 
-                        primary: '#1e3a8a', 
-                        accent: '#10b981', 
-                        info: '#3b82f6',
-                        warning: '#f59e0b'
+                        primary: '#6b0101', // أحمر خمري أساسي
+                        secondary: '#8b0000', // أحمر داكن
+                        accent: '#af1d1d', 
+                        info: '#4a0101',
+                        surface: '#fdf2f2'
                     }
                 }
             }
@@ -29,24 +30,32 @@
     </script>
 
     <style>
-        body { background-color: #f8fafc; font-family: 'Tajawal', sans-serif; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        body { background-color: #fffafa; font-family: 'Tajawal', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(107, 1, 1, 0.1); }
         
+        /* Glassy Burgundy Header Background */
+        .burgundy-glass-header {
+            background: linear-gradient(135deg, rgba(107, 1, 1, 0.9) 0%, rgba(139, 0, 0, 0.8) 100%);
+            backdrop-filter: blur(12px);
+            border-bottom: 3px solid rgba(255, 215, 0, 0.3); /* لمسة ذهبية خفيفة */
+        }
+
         .teacher-card-focused {
             max-width: 600px;
             margin: 2rem auto;
             border-radius: 2.5rem;
             background: white;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(107, 1, 1, 0.15);
             overflow: hidden;
             animation: slideUp 0.5s ease-out forwards;
+            border: 1px solid rgba(107, 1, 1, 0.1);
         }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         
         .custom-select {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b0101'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: left 1rem center;
             background-size: 1.2em;
@@ -54,14 +63,14 @@
 
         .progress-bar {
             height: 6px;
-            background: #e2e8f0;
+            background: #f1e4e4;
             border-radius: 10px;
             overflow: hidden;
             margin-top: 10px;
         }
         .progress-fill {
             height: 100%;
-            background: #1e3a8a;
+            background: #6b0101;
             width: 0%;
             transition: width 0.3s ease;
         }
@@ -70,7 +79,7 @@
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(40, 0, 0, 0.6);
             backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
@@ -87,9 +96,10 @@
             max-width: 500px;
             border-radius: 2rem;
             padding: 2rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
             transform: scale(0.9);
             transition: all 0.3s ease;
+            border: 1px solid rgba(107, 1, 1, 0.2);
         }
         .modal-overlay.active .modal-content { transform: scale(1); }
 
@@ -99,8 +109,9 @@
             .print-container { width: 100%; margin: 0; padding: 20px; box-shadow: none !important; border: none !important; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #ddd !important; padding: 12px; text-align: right; font-size: 11pt; }
-            th { background-color: #f2f2f2 !important; color: black !important; -webkit-print-color-adjust: exact; }
-            .page-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+            th { background-color: #6b0101 !important; color: white !important; -webkit-print-color-adjust: exact; }
+            .page-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6b0101; padding-bottom: 10px; }
+            .print-logo { display: block; margin: 0 auto 10px auto; max-width: 150px; }
         }
     </style>
 </head>
@@ -110,48 +121,57 @@
     <div id="assignmentModal" class="modal-overlay no-print">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-black text-slate-800">تعديل مدرسة الإسناد</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <h3 class="text-xl font-black text-primary">تعديل مدرسة الإسناد</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-primary"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <p id="modalTeacherName" class="text-sm font-bold text-primary mb-4"></p>
+            <p id="modalTeacherName" class="text-sm font-bold text-slate-700 mb-4"></p>
             <div class="mb-6">
                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 mr-1">اختر المدرسة الجديدة:</label>
-                <select id="modalSchoolSelect" class="custom-select w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-primary">
-                    <!-- Schools will be populated here -->
+                <select id="modalSchoolSelect" class="custom-select w-full bg-surface border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-primary">
                 </select>
             </div>
             <div class="flex gap-3">
-                <button onclick="saveManualAssignment()" class="flex-1 bg-primary text-white py-3 rounded-xl font-black hover:bg-blue-800 transition-all">حفظ التعديل</button>
+                <button onclick="saveManualAssignment()" class="flex-1 bg-primary text-white py-3 rounded-xl font-black hover:bg-secondary transition-all shadow-md">حفظ التعديل</button>
                 <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black hover:bg-slate-200 transition-all">إلغاء</button>
             </div>
         </div>
     </div>
 
     <!-- Header -->
-    <header class="no-print bg-primary text-white py-12 px-6 shadow-2xl relative overflow-hidden">
-        <div class="container mx-auto text-center relative z-10">
-            <div class="inline-block bg-white/10 p-3 rounded-2xl mb-4 backdrop-blur-md">
-                <i class="fa-solid fa-address-card text-4xl"></i>
+    <header class="no-print burgundy-glass-header text-white py-10 px-6 shadow-2xl relative overflow-hidden">
+        <div class="container mx-auto text-center relative z-10 flex flex-col items-center">
+            <!-- New Logo -->
+            <div class="bg-white p-2 rounded-2xl mb-4 shadow-xl">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS68c-2G_AQVK-4DmgH6EJ_VBkDJ4Gz18NfkQ&s" alt="" class="h-28 object-contain">
             </div>
-            <h1 class="text-3xl font-black mb-2 tracking-tight">نظام إسناد المعلمين المطور</h1>
-            <p class="text-blue-200 font-bold opacity-80 uppercase text-xs tracking-[0.2em]">مديرية التربية والتعليم - قلقيلية</p>
+            
+            <h1 class="text-4xl font-black mb-4 tracking-tight">نظام إسناد المعلمين المطور</h1>
+            
+            <div class="bg-white/10 px-8 py-4 rounded-3xl backdrop-blur-md border border-white/20 shadow-inner">
+                <p class="text-white font-bold text-xl mb-1">مديرية التربية والتعليم - قلقيلية</p>
+                <p class="text-red-100 font-bold opacity-90 text-sm">قسم المتابعة الميدانية - أ. عبداللطيف رضوان</p>
+            </div>
         </div>
+        
+        <!-- Decoration circles -->
+        <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-black/10 rounded-full blur-3xl"></div>
     </header>
 
-    <main class="container mx-auto p-4 md:p-8 -mt-10">
+    <main class="container mx-auto p-4 md:p-8 -mt-8 relative z-20">
         
         <!-- Setup Section -->
-        <div class="no-print glass-card p-8 rounded-[2.5rem] shadow-xl border border-white mb-8">
+        <div class="no-print glass-card p-8 rounded-[2.5rem] shadow-xl mb-8 bg-white/95">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
                 
                 <!-- Upload Area -->
                 <div class="relative">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">1. ملف البيانات (Excel):</label>
+                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">1. ملف البيانات (Excel):</label>
                     <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden" multiple onchange="handleFileSelect(event)">
-                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-slate-300">
+                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-surface text-primary py-4 rounded-2xl font-black hover:bg-red-100 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-primary/20 shadow-sm">
                         <i class="fa-solid fa-file-circle-plus text-xl"></i> رفع ملفات Excel
                     </button>
-                    <div id="uploadTracker" class="hidden mt-4 bg-white p-3 rounded-xl border border-slate-100">
+                    <div id="uploadTracker" class="hidden mt-4 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                         <div class="flex justify-between items-center mb-1">
                             <span id="trackerFileName" class="text-[10px] font-bold text-slate-500 truncate w-32">جاري المعالجة...</span>
                             <span id="trackerPercent" class="text-[10px] font-black text-primary">0%</span>
@@ -164,30 +184,30 @@
 
                 <!-- School Select -->
                 <div id="schoolStep" class="opacity-40 pointer-events-none transition-all">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">2. مدرسة العمل الأصلية:</label>
-                    <select id="schoolSelect" onchange="updateTeacherList()" class="custom-select w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary">
+                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">2. مدرسة العمل الأصلية:</label>
+                    <select id="schoolSelect" onchange="updateTeacherList()" class="custom-select w-full bg-white border-2 border-primary/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary shadow-sm text-primary">
                         <option value="">-- اختر مدرسة العمل --</option>
                     </select>
                 </div>
 
                 <!-- Teacher Select -->
                 <div id="teacherStep" class="opacity-40 pointer-events-none transition-all">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">3. اختيار المعلم/ة:</label>
-                    <select id="teacherSelect" onchange="renderTeacherCard()" class="custom-select w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary">
+                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">3. اختيار المعلم/ة:</label>
+                    <select id="teacherSelect" onchange="renderTeacherCard()" class="custom-select w-full bg-white border-2 border-primary/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary shadow-sm text-primary">
                         <option value="">-- اختر الاسم --</option>
                     </select>
                 </div>
 
             </div>
-            <div id="statusMsg" class="mt-4 text-center hidden p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-sm"></div>
+            <div id="statusMsg" class="mt-4 text-center hidden p-3 rounded-xl bg-red-50 border border-red-100 text-primary font-bold text-sm"></div>
 
             <!-- Auto Distribute Action -->
             <div id="autoDistributeStep" class="mt-6 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center opacity-40 pointer-events-none transition-all">
                 <div class="mb-4 md:mb-0">
-                    <h4 class="font-black text-slate-800 mb-1">توليد تقرير التوزيع الذكي لجميع المدارس</h4>
-                    <p class="text-xs text-slate-500">سيقوم النظام بربط كل معلم بأقرب مدرسة إسناد متاحة بناءً على تجمع سكنه وتوليد تقرير شامل.</p>
+                    <h4 class="font-black text-primary mb-1">توليد تقرير التوزيع الذكي لجميع المدارس</h4>
+                    <p class="text-xs text-slate-500">سيقوم النظام بربط كل معلم بأقرب مدرسة إسناد بناءً على السكن وتوليد التقرير الملون بالأحمر الخمري.</p>
                 </div>
-                <button onclick="autoDistributeAll()" class="w-full md:w-auto bg-accent text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-accent/30 hover:bg-emerald-600 hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+                <button onclick="autoDistributeAll()" class="w-full md:w-auto bg-primary text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-primary/20 hover:bg-secondary hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> تنفيذ التوزيع وتوليد التقرير
                 </button>
             </div>
@@ -197,8 +217,8 @@
         <div id="cardDisplayArea" class="no-print min-h-[100px]">
              <!-- Placeholder -->
              <div id="placeholder" class="flex flex-col items-center justify-center py-10 opacity-20">
-                <i class="fa-solid fa-id-card-clip text-7xl text-slate-400"></i>
-                <p class="text-lg font-black mt-4">يرجى اختيار معلم لعرض بطاقته</p>
+                <i class="fa-solid fa-id-card-clip text-7xl text-primary"></i>
+                <p class="text-lg font-black mt-4 text-primary">يرجى اختيار معلم لعرض بطاقته</p>
              </div>
         </div>
 
@@ -298,7 +318,6 @@
             sSelect.innerHTML = '<option value="">-- اختر مدرسة العمل --</option>';
             state.allSchools.forEach(s => sSelect.add(new Option(s, s)));
             
-            // Populate Modal Select
             const mSelect = document.getElementById('modalSchoolSelect');
             mSelect.innerHTML = '<option value="بانتظار التحديد">-- بانتظار التحديد --</option>';
             state.allSchools.forEach(s => mSelect.add(new Option(s, s)));
@@ -339,11 +358,8 @@
             const newSchool = document.getElementById('modalSchoolSelect').value;
             const t = state.teachers.find(x => x.id === state.editingTeacherId);
             t.assigned = newSchool;
-            
-            // Refresh UI
             if(!document.getElementById('distributionTableArea').classList.contains('hidden')) renderDistributionReport();
             if(document.getElementById('teacherSelect').value === state.editingTeacherId) renderTeacherCard();
-            
             closeModal();
         }
 
@@ -375,14 +391,14 @@
             const area = document.getElementById('distributionTableArea');
             area.classList.remove('hidden');
             let rows = state.teachers.map((t, index) => `
-                <tr class="hover:bg-slate-50 transition-colors border-b">
-                    <td class="text-center font-bold no-print py-3">${index + 1}</td>
-                    <td class="font-bold py-3">${t.name}</td>
-                    <td class="py-3">${t.currentSchool}</td>
-                    <td class="py-3">${t.town}</td>
-                    <td class="text-primary font-bold bg-blue-50/30 py-3">${t.assigned}</td>
+                <tr class="hover:bg-red-50/50 transition-colors border-b border-red-100">
+                    <td class="text-center font-bold no-print py-3 text-primary/70">${index + 1}</td>
+                    <td class="font-bold py-3 text-slate-800">${t.name}</td>
+                    <td class="py-3 text-slate-600">${t.currentSchool}</td>
+                    <td class="py-3 text-slate-600">${t.town}</td>
+                    <td class="text-primary font-black bg-red-50/30 py-3">${t.assigned}</td>
                     <td class="no-print text-center py-3">
-                        <button onclick="openModal('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2 bg-blue-50 rounded-lg">
+                        <button onclick="openModal('${t.id}')" class="text-primary hover:text-secondary p-2 bg-red-50 rounded-lg shadow-sm border border-red-100">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                     </td>
@@ -390,33 +406,53 @@
             `).join('');
 
             area.innerHTML = `
-                <div class="glass-card p-10 rounded-[2.5rem] shadow-2xl border border-white mt-12 mb-20">
-                    <div class="page-header">
-                        <h2 class="text-2xl font-black text-slate-900 mb-2">تقرير توزيع معلمي الإسناد</h2>
-                        <p class="text-slate-500 font-bold">مديرية التربية والتعليم - قلقيلية | قسم التخطيط</p>
+                <div class="glass-card p-10 rounded-[2.5rem] shadow-2xl mt-12 mb-20 bg-white border-2 border-primary/10">
+                    <div class="page-header relative">
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS68c-2G_AQVK-4DmgH6EJ_VBkDJ4Gz18NfkQ&s" alt="" class="print-logo hidden absolute top-0 right-0 h-20">
+                        <h2 class="text-3xl font-black text-primary mb-2">تقرير توزيع معلمي الإسناد</h2>
+                        <p class="text-slate-800 font-bold mb-1">مديرية التربية والتعليم - قلقيلية</p>
+                        <p class="text-primary/70 font-bold text-sm">قسم المتابعة الميدانية - أ. عبداللطيف رضوان</p>
                     </div>
 
                     <div class="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
-                        <p class="text-slate-600 text-sm">إجمالي المعلمين المدرجين: <b>${state.teachers.length}</b></p>
-                        <button onclick="window.print()" class="bg-primary text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition-all flex items-center gap-2">
-                            <i class="fa-solid fa-file-pdf"></i> حفظ كملف PDF / طباعة
+                        <p class="text-slate-600 text-sm">إجمالي المعلمين المدرجين: <b class="text-primary">${state.teachers.length}</b></p>
+                        <button onclick="window.print()" class="bg-primary text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-secondary transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-file-pdf"></i> طباعة كتقرير رسمي
                         </button>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto rounded-2xl border border-red-100">
                         <table class="w-full text-right border-collapse">
                             <thead>
                                 <tr class="bg-primary text-white">
-                                    <th class="py-4 px-4 text-center rounded-tr-xl no-print">#</th>
+                                    <th class="py-4 px-4 text-center no-print">#</th>
                                     <th class="py-4 px-4">اسم المعلم/ة</th>
                                     <th class="py-4 px-4">المدرسة الأصلية</th>
                                     <th class="py-4 px-4">منطقة السكن</th>
-                                    <th class="py-4 px-4 bg-blue-700">المدرسة المنقول إليها (إسناد)</th>
-                                    <th class="py-4 px-4 text-center rounded-tl-xl no-print">إجراء</th>
+                                    <th class="py-4 px-4">المدرسة المسند إليها</th>
+                                    <th class="py-4 px-4 text-center no-print">إجراء</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
                         </table>
+                    </div>
+                    
+                    <div class="mt-16 grid grid-cols-3 gap-8 text-center hidden print:grid">
+                        <div>
+                            <p class="font-black text-primary mb-10">رئيس قسم المتابعة الميدانية</p>
+                            <p class="font-bold text-slate-800">أ. عبداللطيف رضوان</p>
+                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
+                        </div>
+                        <div>
+                            <p class="font-black text-primary mb-10">المدير الإداري</p>
+                            <p class="font-bold text-slate-800">&nbsp;</p>
+                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
+                        </div>
+                        <div>
+                            <p class="font-black text-primary mb-10">مدير عام التربية والتعليم</p>
+                            <p class="font-bold text-slate-800">أ. أمين عواد</p>
+                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -430,29 +466,30 @@
             const cluster = getClusterData(t.town);
             
             area.innerHTML = `
-                <div class="teacher-card-focused shadow-2xl no-print">
-                    <div class="bg-primary p-8 text-white text-center relative">
-                        <div class="absolute top-4 left-4 bg-white/20 px-3 py-1 rounded-full text-[10px] font-black">${cluster.name}</div>
-                        <h2 class="text-xl font-black mb-1">${t.name}</h2>
-                        <p class="text-blue-200 text-xs font-bold">${t.spec}</p>
+                <div class="teacher-card-focused shadow-2xl no-print border-2 border-primary/5">
+                    <div class="bg-primary p-8 text-white text-center relative overflow-hidden">
+                        <div class="absolute top-4 left-4 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black border border-white/20">${cluster.name}</div>
+                        <h2 class="text-2xl font-black mb-1">${t.name}</h2>
+                        <p class="text-red-100 text-xs font-bold opacity-80">${t.spec}</p>
+                        <div class="absolute -right-5 -bottom-5 w-20 h-20 bg-white/5 rounded-full"></div>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div class="grid grid-cols-2 gap-3 text-center">
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span class="block text-[9px] text-slate-400 font-black uppercase">المدرسة الأصلية</span>
-                                <span class="text-xs font-bold text-slate-700">${t.currentSchool}</span>
+                    <div class="p-8 space-y-6">
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-surface p-4 rounded-2xl border border-primary/10">
+                                <span class="block text-[10px] text-primary/50 font-black uppercase mb-1">المدرسة الأصلية</span>
+                                <span class="text-sm font-bold text-slate-800">${t.currentSchool}</span>
                             </div>
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span class="block text-[9px] text-slate-400 font-black uppercase">السكن</span>
-                                <span class="text-xs font-bold text-slate-700">${t.town}</span>
+                            <div class="bg-surface p-4 rounded-2xl border border-primary/10">
+                                <span class="block text-[10px] text-primary/50 font-black uppercase mb-1">السكن</span>
+                                <span class="text-sm font-bold text-slate-800">${t.town}</span>
                             </div>
                         </div>
-                        <div class="bg-emerald-50 rounded-2xl p-6 text-center border border-emerald-100">
-                             <span class="block text-[9px] text-emerald-600 font-black mb-1">المدرسة المنقول إليها حالياً</span>
-                             <h3 class="text-lg font-black text-emerald-800">${t.assigned}</h3>
+                        <div class="bg-primary/5 rounded-3xl p-8 text-center border-2 border-primary/10 shadow-inner">
+                             <span class="block text-[10px] text-primary font-black mb-2 uppercase tracking-widest">المدرسة المنقول إليها (إسناد)</span>
+                             <h3 class="text-2xl font-black text-primary">${t.assigned}</h3>
                         </div>
-                        <button onclick="openModal('${t.id}')" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-sm hover:bg-black transition-all flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-list-ul"></i> اختيار مدرسة من القائمة
+                        <button onclick="openModal('${t.id}')" class="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm hover:bg-secondary transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20">
+                            <i class="fa-solid fa-list-ul"></i> تغيير مدرسة الإسناد
                         </button>
                     </div>
                 </div>
