@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إسناد الذكي | مديرية قلقيلية</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
+                    colors: { 
+                        primary: '#1e3a8a', 
+                        accent: '#10b981', 
+                        info: '#3b82f6',
+                        warning: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: 'Tajawal', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        
+        .teacher-card-focused {
+            max-width: 600px;
+            margin: 2rem auto;
+            border-radius: 2.5rem;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .custom-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 1rem center;
+            background-size: 1.2em;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #1e3a8a;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 2rem;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; margin: 0; }
+            .print-container { width: 100%; margin: 0; padding: 20px; box-shadow: none !important; border: none !important; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd !important; padding: 12px; text-align: right; font-size: 11pt; }
+            th { background-color: #f2f2f2 !important; color: black !important; -webkit-print-color-adjust: exact; }
+            .page-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-20">
+
+    <!-- Modal for Manual Assignment -->
+    <div id="assignmentModal" class="modal-overlay no-print">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black text-slate-800">تعديل مدرسة الإسناد</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <p id="modalTeacherName" class="text-sm font-bold text-primary mb-4"></p>
+            <div class="mb-6">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 mr-1">اختر المدرسة الجديدة:</label>
+                <select id="modalSchoolSelect" class="custom-select w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-primary">
+                    <!-- Schools will be populated here -->
+                </select>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="saveManualAssignment()" class="flex-1 bg-primary text-white py-3 rounded-xl font-black hover:bg-blue-800 transition-all">حفظ التعديل</button>
+                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black hover:bg-slate-200 transition-all">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="no-print bg-primary text-white py-12 px-6 shadow-2xl relative overflow-hidden">
+        <div class="container mx-auto text-center relative z-10">
+            <div class="inline-block bg-white/10 p-3 rounded-2xl mb-4 backdrop-blur-md">
+                <i class="fa-solid fa-address-card text-4xl"></i>
+            </div>
+            <h1 class="text-3xl font-black mb-2 tracking-tight">نظام إسناد المعلمين المطور</h1>
+            <p class="text-blue-200 font-bold opacity-80 uppercase text-xs tracking-[0.2em]">مديرية التربية والتعليم - قلقيلية</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8 -mt-10">
+        
+        <!-- Setup Section -->
+        <div class="no-print glass-card p-8 rounded-[2.5rem] shadow-xl border border-white mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
+                
+                <!-- Upload Area -->
+                <div class="relative">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">1. ملف البيانات (Excel):</label>
+                    <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden" multiple onchange="handleFileSelect(event)">
+                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-slate-300">
+                        <i class="fa-solid fa-file-circle-plus text-xl"></i> رفع ملفات Excel
+                    </button>
+                    <div id="uploadTracker" class="hidden mt-4 bg-white p-3 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center mb-1">
+                            <span id="trackerFileName" class="text-[10px] font-bold text-slate-500 truncate w-32">جاري المعالجة...</span>
+                            <span id="trackerPercent" class="text-[10px] font-black text-primary">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="trackerBar" class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- School Select -->
+                <div id="schoolStep" class="opacity-40 pointer-events-none transition-all">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">2. مدرسة العمل الأصلية:</label>
+                    <select id="schoolSelect" onchange="updateTeacherList()" class="custom-select w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary">
+                        <option value="">-- اختر مدرسة العمل --</option>
+                    </select>
+                </div>
+
+                <!-- Teacher Select -->
+                <div id="teacherStep" class="opacity-40 pointer-events-none transition-all">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 mr-2">3. اختيار المعلم/ة:</label>
+                    <select id="teacherSelect" onchange="renderTeacherCard()" class="custom-select w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary">
+                        <option value="">-- اختر الاسم --</option>
+                    </select>
+                </div>
+
+            </div>
+            <div id="statusMsg" class="mt-4 text-center hidden p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-sm"></div>
+
+            <!-- Auto Distribute Action -->
+            <div id="autoDistributeStep" class="mt-6 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center opacity-40 pointer-events-none transition-all">
+                <div class="mb-4 md:mb-0">
+                    <h4 class="font-black text-slate-800 mb-1">توليد تقرير التوزيع الذكي لجميع المدارس</h4>
+                    <p class="text-xs text-slate-500">سيقوم النظام بربط كل معلم بأقرب مدرسة إسناد متاحة بناءً على تجمع سكنه وتوليد تقرير شامل.</p>
+                </div>
+                <button onclick="autoDistributeAll()" class="w-full md:w-auto bg-accent text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-accent/30 hover:bg-emerald-600 hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> تنفيذ التوزيع وتوليد التقرير
+                </button>
+            </div>
+        </div>
+
+        <!-- Single Card Result Area -->
+        <div id="cardDisplayArea" class="no-print min-h-[100px]">
+             <!-- Placeholder -->
+             <div id="placeholder" class="flex flex-col items-center justify-center py-10 opacity-20">
+                <i class="fa-solid fa-id-card-clip text-7xl text-slate-400"></i>
+                <p class="text-lg font-black mt-4">يرجى اختيار معلم لعرض بطاقته</p>
+             </div>
+        </div>
+
+        <!-- Distribution Report Area -->
+        <div id="distributionTableArea" class="hidden print-container"></div>
+
+    </main>
+
+    <script>
+        const CLUSTERS = {
+            "التجمع الأول (قلقيلية والخط الجنوبي)": ["قلقيلية", "حبلة", "الضبعة", "راس طيرة", "راس عطية", "عزبة سلمان", "عزون عتمة", "بيت أمين", "سنيريا", "كفرثلث", "عزون", "عزبة الطبيب", "عسلة", "النبي الياس"],
+            "التجمع الثاني (الخط الشمالي)": ["جيوس", "صير", "فلامية", "حجة", "كفر قدوم", "الفندق", "كفر لاقف"],
+            "التجمع الثالث": ["جيت", "جينصافوط"]
+        };
+
+        let state = {
+            teachers: [],
+            allSchools: [],
+            schoolLocations: new Map(),
+            editingTeacherId: null
+        };
+
+        const norm = (t) => t ? t.toString().trim().replace(/[أإآا]/g, "ا").replace(/[ةه]/g, "ه").replace(/[يى]/g, "ي") : "";
+
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+            const tracker = document.getElementById('uploadTracker');
+            const trackerBar = document.getElementById('trackerBar');
+            const trackerName = document.getElementById('trackerFileName');
+            const trackerPercent = document.getElementById('trackerPercent');
+            tracker.classList.remove('hidden');
+            let totalFiles = files.length;
+            for (let i = 0; i < totalFiles; i++) {
+                let file = files[i];
+                trackerName.innerText = `جاري معالجة: ${file.name}`;
+                await processExcel(file);
+                let progress = Math.round(((i + 1) / totalFiles) * 100);
+                trackerBar.style.width = `${progress}%`;
+                trackerPercent.innerText = `${progress}%`;
+            }
+            setTimeout(() => {
+                tracker.classList.add('hidden');
+                finalizeData();
+            }, 500);
+        }
+
+        async function processExcel(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const data = new Uint8Array(ev.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+                    json.forEach(row => {
+                        const keys = Object.keys(row);
+                        const find = (keywords) => {
+                            const k = keys.find(key => keywords.some(word => key.toString().includes(word)));
+                            return k ? row[k].toString().trim() : "";
+                        };
+                        const name = find(['الاسم', 'المعلم']);
+                        const school = find(['مدرسة', 'المدرسة الحالية']);
+                        const town = find(['سكن', 'العنوان', 'البلدة']);
+                        const spec = find(['تخصص', 'المبحث', 'المادة']);
+                        const location = find(['موقع', 'مكان المدرسة', 'البلدة الواقعة']);
+                        
+                        if (school && location && !name) {
+                            state.schoolLocations.set(norm(school), location);
+                        }
+                        if (name && name.length > 2) {
+                            state.teachers.push({
+                                id: find(['رقم', 'كود']) || Math.random().toString(36).substr(2, 5),
+                                name,
+                                currentSchool: school || "غير محدد",
+                                town: town || "غير محدد",
+                                spec: spec || "غير محدد",
+                                assigned: "بانتظار التحديد"
+                            });
+                        }
+                    });
+                    resolve();
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function finalizeData() {
+            const uniqueMap = new Map();
+            state.teachers.forEach(t => {
+                const key = `${norm(t.name)}-${norm(t.currentSchool)}`;
+                if (!uniqueMap.has(key)) uniqueMap.set(key, t);
+            });
+            state.teachers = Array.from(uniqueMap.values());
+            state.allSchools = [...new Set(state.teachers.map(t => t.currentSchool))].filter(s => s !== "غير محدد").sort();
+            
+            const sSelect = document.getElementById('schoolSelect');
+            sSelect.innerHTML = '<option value="">-- اختر مدرسة العمل --</option>';
+            state.allSchools.forEach(s => sSelect.add(new Option(s, s)));
+            
+            // Populate Modal Select
+            const mSelect = document.getElementById('modalSchoolSelect');
+            mSelect.innerHTML = '<option value="بانتظار التحديد">-- بانتظار التحديد --</option>';
+            state.allSchools.forEach(s => mSelect.add(new Option(s, s)));
+
+            document.getElementById('schoolStep').classList.remove('opacity-40', 'pointer-events-none');
+            document.getElementById('autoDistributeStep').classList.remove('opacity-40', 'pointer-events-none');
+            const msg = document.getElementById('statusMsg');
+            msg.innerHTML = `<i class="fa-solid fa-check-circle ml-2"></i> تم تحميل ${state.teachers.length} معلماً و ${state.allSchools.length} مدرسة بنجاح`;
+            msg.classList.remove('hidden');
+        }
+
+        function updateTeacherList() {
+            const school = document.getElementById('schoolSelect').value;
+            const tSelect = document.getElementById('teacherSelect');
+            tSelect.innerHTML = '<option value="">-- اختر الاسم --</option>';
+            if (school) {
+                const filtered = state.teachers.filter(t => t.currentSchool === school).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
+                filtered.forEach(t => tSelect.add(new Option(t.name, t.id)));
+                document.getElementById('teacherStep').classList.remove('opacity-40', 'pointer-events-none');
+            }
+        }
+
+        function openModal(teacherId) {
+            state.editingTeacherId = teacherId;
+            const t = state.teachers.find(x => x.id === teacherId);
+            document.getElementById('modalTeacherName').innerText = `المعلم/ة: ${t.name}`;
+            document.getElementById('modalSchoolSelect').value = t.assigned;
+            document.getElementById('assignmentModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('assignmentModal').classList.remove('active');
+            state.editingTeacherId = null;
+        }
+
+        function saveManualAssignment() {
+            if (!state.editingTeacherId) return;
+            const newSchool = document.getElementById('modalSchoolSelect').value;
+            const t = state.teachers.find(x => x.id === state.editingTeacherId);
+            t.assigned = newSchool;
+            
+            // Refresh UI
+            if(!document.getElementById('distributionTableArea').classList.contains('hidden')) renderDistributionReport();
+            if(document.getElementById('teacherSelect').value === state.editingTeacherId) renderTeacherCard();
+            
+            closeModal();
+        }
+
+        function getClusterData(town) {
+            const nTown = norm(town);
+            for (const [clusterName, towns] of Object.entries(CLUSTERS)) {
+                if (towns.some(t => nTown.includes(norm(t)))) return { name: clusterName, towns };
+            }
+            return { name: "غير مصنف", towns: [] };
+        }
+
+        function autoDistributeAll() {
+            if (state.teachers.length === 0) return;
+            state.teachers.forEach(t => {
+                const cluster = getClusterData(t.town);
+                const suggestions = state.allSchools.filter(schoolName => {
+                    if (schoolName === t.currentSchool) return false;
+                    const nSchool = norm(schoolName);
+                    const loc = norm(state.schoolLocations.get(nSchool) || "");
+                    return cluster.towns.some(town => nSchool.includes(norm(town)) || loc.includes(norm(town)));
+                });
+                t.assigned = suggestions.length > 0 ? suggestions[0] : "لم يتم تحديد مدرسة قريبة";
+            });
+            renderDistributionReport();
+            document.getElementById('distributionTableArea').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderDistributionReport() {
+            const area = document.getElementById('distributionTableArea');
+            area.classList.remove('hidden');
+            let rows = state.teachers.map((t, index) => `
+                <tr class="hover:bg-slate-50 transition-colors border-b">
+                    <td class="text-center font-bold no-print py-3">${index + 1}</td>
+                    <td class="font-bold py-3">${t.name}</td>
+                    <td class="py-3">${t.currentSchool}</td>
+                    <td class="py-3">${t.town}</td>
+                    <td class="text-primary font-bold bg-blue-50/30 py-3">${t.assigned}</td>
+                    <td class="no-print text-center py-3">
+                        <button onclick="openModal('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2 bg-blue-50 rounded-lg">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            area.innerHTML = `
+                <div class="glass-card p-10 rounded-[2.5rem] shadow-2xl border border-white mt-12 mb-20">
+                    <div class="page-header">
+                        <h2 class="text-2xl font-black text-slate-900 mb-2">تقرير توزيع معلمي الإسناد</h2>
+                        <p class="text-slate-500 font-bold">مديرية التربية والتعليم - قلقيلية | قسم التخطيط</p>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
+                        <p class="text-slate-600 text-sm">إجمالي المعلمين المدرجين: <b>${state.teachers.length}</b></p>
+                        <button onclick="window.print()" class="bg-primary text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-file-pdf"></i> حفظ كملف PDF / طباعة
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="bg-primary text-white">
+                                    <th class="py-4 px-4 text-center rounded-tr-xl no-print">#</th>
+                                    <th class="py-4 px-4">اسم المعلم/ة</th>
+                                    <th class="py-4 px-4">المدرسة الأصلية</th>
+                                    <th class="py-4 px-4">منطقة السكن</th>
+                                    <th class="py-4 px-4 bg-blue-700">المدرسة المنقول إليها (إسناد)</th>
+                                    <th class="py-4 px-4 text-center rounded-tl-xl no-print">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTeacherCard() {
+            const id = document.getElementById('teacherSelect').value;
+            const area = document.getElementById('cardDisplayArea');
+            if (!id) { area.innerHTML = document.getElementById('placeholder').outerHTML; return; }
+            const t = state.teachers.find(x => x.id == id);
+            const cluster = getClusterData(t.town);
+            
+            area.innerHTML = `
+                <div class="teacher-card-focused shadow-2xl no-print">
+                    <div class="bg-primary p-8 text-white text-center relative">
+                        <div class="absolute top-4 left-4 bg-white/20 px-3 py-1 rounded-full text-[10px] font-black">${cluster.name}</div>
+                        <h2 class="text-xl font-black mb-1">${t.name}</h2>
+                        <p class="text-blue-200 text-xs font-bold">${t.spec}</p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-2 gap-3 text-center">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="block text-[9px] text-slate-400 font-black uppercase">المدرسة الأصلية</span>
+                                <span class="text-xs font-bold text-slate-700">${t.currentSchool}</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="block text-[9px] text-slate-400 font-black uppercase">السكن</span>
+                                <span class="text-xs font-bold text-slate-700">${t.town}</span>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 rounded-2xl p-6 text-center border border-emerald-100">
+                             <span class="block text-[9px] text-emerald-600 font-black mb-1">المدرسة المنقول إليها حالياً</span>
+                             <h3 class="text-lg font-black text-emerald-800">${t.assigned}</h3>
+                        </div>
+                        <button onclick="openModal('${t.id}')" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-sm hover:bg-black transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-list-ul"></i> اختيار مدرسة من القائمة
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
