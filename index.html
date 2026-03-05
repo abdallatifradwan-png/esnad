@@ -42,7 +42,7 @@
         <div class="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 alert-animate">
             <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
             <div>
-                <p class="font-black" id="alertTitle">تنبيه تكرار تخصص!</p>
+                <p class="font-black" id="alertTitle">تنبيه تكرار تخصص أو تجاوز سعة!</p>
                 <p class="text-sm opacity-90" id="alertMsg"></p>
             </div>
             <button onclick="confirmManualTransfer()" class="bg-white text-red-600 px-4 py-1 rounded-lg font-bold mr-4 cursor-pointer hover:bg-slate-100 transition-colors">تأكيد الإسناد</button>
@@ -146,7 +146,10 @@
                 <button onclick="document.getElementById('modalInbound').classList.add('hidden')" class="text-3xl font-bold cursor-pointer hover:scale-110 transition-transform">&times;</button>
             </div>
             <div class="p-6 overflow-hidden flex flex-col">
-                <div id="inboundHeader" class="mb-4 p-4 bg-slate-100 rounded-2xl text-center font-black text-primary border-r-4 border-accent"></div>
+                <div id="inboundHeader" class="mb-4 p-4 bg-slate-100 rounded-2xl text-center font-black text-primary border-r-4 border-accent flex justify-between items-center">
+                    <span id="inboundSchoolName"></span>
+                    <span id="inboundCountBadge" class="bg-primary text-white px-3 py-1 rounded-full text-sm"></span>
+                </div>
                 <div class="overflow-y-auto border rounded-2xl custom-scrollbar border-slate-200">
                     <table class="w-full text-right">
                         <thead class="bg-slate-50 border-b sticky top-0 z-10">
@@ -169,7 +172,7 @@
     </div>
 
     <script>
-        // التجمعات المعتمدة مع القواعد الصارمة لجينصافوط، جيت، والرماضين
+        // التجمعات المعتمدة
         const CLUSTERS = {
             "قلقيلية والخط الجنوبي": ["قلقيلية", "حبلة", "الضبعة", "راس طيرة", "راس عطية", "عزبة سلمان", "عزون عتمة", "بيت أمين", "سنيريا", "كفر ثلث", "عزون", "عزبة الطبيب", "عسلة", "النبي الياس", "النبي إلياس"],
             "الخط الشمالي": ["جيوس", "صير", "فلامية", "حجة", "كفر قدوم", "الفندق", "كفر لاقف", "باقة الحطب", "اماتين", "إماتين"],
@@ -180,8 +183,14 @@
 
         let teachersList = [];
         let uniqueSchools = [];
+        
+        // المتغيرات العامة لتتبع التوزيع الشمولي لضمان عدم تجاوز السعة
+        let globalAssignments = {}; // { teacherIndex: assignedSchoolName }
+        let schoolCapacities = {};  // { schoolName: numberOfOpenSlots }
+        
         let editingRowIdx = null;
         let pendingTransfer = null;
+        let pendingTransferIdx = null;
 
         document.getElementById('excelFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -209,6 +218,10 @@
                 teachersList = Array.from(uniqueTeachersMap.values());
                 uniqueSchools = [...new Set(teachersList.map(t => t.school).filter(Boolean))].sort();
                 
+                // 1. حساب التوزيع الشمولي بمجرد رفع الملف لضمان السعات
+                calculateGlobalDistribution();
+                
+                // 2. تعبئة قائمة المدارس
                 const selector = document.getElementById('schoolSelector');
                 selector.innerHTML = '<option value="">-- اختر مدرسة العمل الأصلية --</option>';
                 uniqueSchools.forEach(s => {
@@ -216,6 +229,10 @@
                     opt.value = s; opt.innerText = s;
                     selector.appendChild(opt);
                 });
+                
+                // تصفير الجدول
+                document.getElementById('resultsTable').classList.add('hidden');
+                document.getElementById('btnInbound').classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
         });
@@ -226,6 +243,66 @@
                 if(CLUSTERS[clusterName].some(keyword => location.includes(keyword))) return clusterName;
             }
             return null;
+        }
+
+        // الخوارزمية الشمولية: تضمن أن عدد المسندين للمدرسة لا يتجاوز المغادرين منها
+        function calculateGlobalDistribution() {
+            globalAssignments = {};
+            schoolCapacities = {};
+            let movers = [];
+
+            // تهيئة سعة المدارس بـ صفر
+            uniqueSchools.forEach(s => { schoolCapacities[s] = 0; });
+
+            // المرحلة الأولى: تحديد الثابتين والمغادرين وحساب الشواغر
+            teachersList.forEach((t, index) => {
+                const isRamadinSchool = t.school.includes("الرماضين");
+                const isRamadinHome = t.home.includes("الرماضين");
+                
+                // شرط السكن: إذا سكنه نفس مدرسته، أو سكنه في نفس تجمع مدرسته = لا ينقل
+                const isResidentMatch = t.school.includes(t.home) || t.home.includes(t.school);
+                const homeCluster = getCluster(t.home);
+                const schoolClusterOriginal = getCluster(t.school);
+                const isSameClusterMatch = (homeCluster && schoolClusterOriginal && homeCluster === schoolClusterOriginal);
+
+                if (isRamadinSchool || isRamadinHome || isResidentMatch || isSameClusterMatch) {
+                    // ثابت: يبقى في مدرسته
+                    globalAssignments[index] = t.school;
+                } else {
+                    // مغادر: يسجل كمغادر، وتكسب مدرسته الأصلية "مقعد شاغر"
+                    movers.push({ teacher: t, index: index });
+                    schoolCapacities[t.school]++;
+                }
+            });
+
+            // المرحلة الثانية: توزيع المغادرين بناءً على الشواغر المتاحة فقط
+            movers.forEach(m => {
+                const t = m.teacher;
+                const idx = m.index;
+                const homeCluster = getCluster(t.home);
+
+                if (!homeCluster) {
+                    globalAssignments[idx] = t.school; // يبقى إذا لم يعرف التجمع
+                    return;
+                }
+
+                // البحث عن المدارس في تجمع سكنه التي تمتلك "مقاعد شاغرة" (أي غادرها معلمون)
+                const availableSchools = uniqueSchools.filter(s => {
+                    return getCluster(s) === homeCluster && !s.includes("الرماضين") && schoolCapacities[s] > 0;
+                });
+
+                if (availableSchools.length > 0) {
+                    // الإسناد لأول مدرسة يتوفر بها شاغر لضمان عدم تجاوز السعة الأصلية للمدرسة
+                    const targetSchool = availableSchools[0];
+                    globalAssignments[idx] = targetSchool;
+                    schoolCapacities[targetSchool]--; // خصم الشاغر
+                } else {
+                    // إذا لم تتوفر مقاعد شاغرة في تجمع سكنه (للحفاظ على سعة المدارس) يجب إبقاؤه بمدرسته الأصلية
+                    globalAssignments[idx] = t.school;
+                    // وبما أنه بقي في مدرسته، يجب أن نسترد الشاغر الذي حسبناه له مسبقاً
+                    schoolCapacities[t.school]--; 
+                }
+            });
         }
 
         function generateDistributionTable() {
@@ -246,63 +323,17 @@
             document.getElementById('btnDownload').disabled = false;
             tbody.innerHTML = '';
             
-            let esnadTracker = {}; 
-            const targetStaff = teachersList.filter(t => t.school === selectedSchool);
+            // استخراج معلمي هذه المدرسة من القائمة الشاملة مع الحفاظ على الفهرس الأصلي (index)
+            const targetStaff = teachersList.map((t, i) => ({ teacher: t, globalIndex: i })).filter(item => item.teacher.school === selectedSchool);
 
-            targetStaff.forEach((t, i) => {
-                let assignment = "";
-                
-                // القاعدة 1: معلمو الرماضين ممنوع نقلهم، والرماضين ممنوع نقل أحد إليها
-                const isRamadinSchool = t.school.includes("الرماضين");
-                const isRamadinHome = t.home.includes("الرماضين");
-                
-                // القاعدة 2: إذا كان مكان سكن المعلم نفس موقع مدرسته الأصلية ممنوع نقله
-                const isResidentMatch = t.school.includes(t.home) || t.home.includes(t.school);
-
-                // القاعدة 3 (الجديدة): إذا كان التجمع الخاص بسكن المعلم هو نفس تجمع مدرسته الأصلية، لا داعي لنقله (يبقى بمدرسته)
-                const homeCluster = getCluster(t.home);
-                const schoolClusterOriginal = getCluster(t.school);
-                const isSameClusterMatch = (homeCluster && schoolClusterOriginal && homeCluster === schoolClusterOriginal);
-
-                // تطبيق كافة استثناءات المنع
-                if (isRamadinSchool || isRamadinHome || isResidentMatch || isSameClusterMatch) {
-                    assignment = t.school;
-                } else {
-                    if (homeCluster) {
-                        // تصفية مدارس الإسناد المتاحة: يجب أن تكون في نفس التجمع حصراً
-                        const potentialSchools = uniqueSchools.filter(s => {
-                            const schoolCluster = getCluster(s);
-                            // منع النقل إلى الرماضين ومنع النقل خارج التجمع
-                            return schoolCluster === homeCluster && !s.includes("الرماضين");
-                        });
-
-                        // البحث عن أفضل مدرسة إسناد (تطابق تخصص)
-                        let bestSchool = potentialSchools.find(s => {
-                            const hasOriginalSubject = teachersList.some(teacher => teacher.school === s && teacher.subject === t.subject);
-                            const hasEsnadSubject = esnadTracker[`${s}_${t.subject}`];
-                            return !hasOriginalSubject && !hasEsnadSubject;
-                        });
-
-                        if (bestSchool) {
-                            assignment = bestSchool;
-                            esnadTracker[`${bestSchool}_${t.subject}`] = true;
-                        } else if (potentialSchools.length > 0) {
-                            // إذا لم نجد مدرسة ينقصها التخصص، نختار أول مدرسة في التجمع
-                            assignment = potentialSchools[0];
-                            esnadTracker[`${potentialSchools[0]}_${t.subject}`] = true;
-                        } else {
-                            // إذا لم توجد أي مدرسة في التجمع (مثلاً تجمع معزول) يبقى في مدرسته
-                            assignment = t.school;
-                        }
-                    } else {
-                        assignment = t.school; // يبقى في مدرسته إذا لم يعرف التجمع
-                    }
-                }
-
+            targetStaff.forEach((item, displayIndex) => {
+                const t = item.teacher;
+                const assignment = globalAssignments[item.globalIndex];
                 const isOriginal = assignment === t.school;
+                
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="p-5 text-slate-400 font-bold border-b border-slate-100">${i+1}</td>
+                    <tr class="hover:bg-slate-50 transition-colors" data-global-index="${item.globalIndex}">
+                        <td class="p-5 text-slate-400 font-bold border-b border-slate-100">${displayIndex + 1}</td>
                         <td class="p-5 text-right font-black text-slate-800 border-b border-slate-100">${t.name}</td>
                         <td class="p-5 text-slate-600 font-bold border-b border-slate-100">${t.home}</td>
                         <td class="p-5 text-slate-500 font-bold border-b border-slate-100 origin-marker">${t.school}</td>
@@ -314,7 +345,7 @@
                            </div>
                         </td>
                         <td class="p-5 no-print border-b border-slate-100">
-                            <button onclick="openEdit(${i})" class="bg-primary/5 hover:bg-primary/10 text-primary w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer">
+                            <button onclick="openEdit(${displayIndex}, ${item.globalIndex})" class="bg-primary/5 hover:bg-primary/10 text-primary w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                         </td>
@@ -323,6 +354,7 @@
             });
         }
 
+        // عرض المعلمين المسندين بناءً على التوزيع الشمولي المعتمد (لن يتجاوز المغادرين أبداً)
         function showInboundTeachers() {
             const selectedSchool = document.getElementById('schoolSelector').value;
             if(!selectedSchool) return;
@@ -330,52 +362,42 @@
             const modal = document.getElementById('modalInbound');
             const listContainer = document.getElementById('listInbound');
             const noMsg = document.getElementById('noInboundMsg');
-            const header = document.getElementById('inboundHeader');
-
-            header.innerText = `المدرسة المُسند إليها: ${selectedSchool}`;
+            
+            document.getElementById('inboundSchoolName').innerText = `المدرسة المُسند إليها: ${selectedSchool}`;
             listContainer.innerHTML = '';
             
-            const targetCluster = getCluster(selectedSchool);
-            let count = 0;
-
-            teachersList.forEach(t => {
-                const isRamadinHome = t.home.includes("الرماضين");
-                const isResidentMatch = t.school.includes(t.home) || t.home.includes(t.school);
-                
-                const homeCluster = getCluster(t.home);
-                const schoolClusterOriginal = getCluster(t.school);
-                const isSameClusterMatch = (homeCluster && schoolClusterOriginal && homeCluster === schoolClusterOriginal);
-
-                // التحقق من من يمكن إسناده لهذه المدرسة
-                if(!isRamadinHome && !isResidentMatch && !isSameClusterMatch && t.school !== selectedSchool) {
-                    // يجب أن يكون سكن المعلم من نفس تجمع مدرسة الإسناد
-                    if (homeCluster === targetCluster && !selectedSchool.includes("الرماضين")) {
-                        count++;
-                        listContainer.innerHTML += `
-                            <tr class="hover:bg-amber-50 transition-colors border-b border-slate-100">
-                                <td class="p-4 text-xs text-slate-400 font-bold">${count}</td>
-                                <td class="p-4 font-black text-slate-800">${t.name}</td>
-                                <td class="p-4 text-slate-600 font-bold">${t.subject}</td>
-                                <td class="p-4 text-primary font-bold text-sm">${t.school}</td>
-                            </tr>
-                        `;
-                    }
-                }
+            // فلترة القائمة العامة: من تم إسناده لهذه المدرسة، ومدرسته الأصلية ليست هي
+            const inboundTeachers = teachersList.filter((t, i) => {
+                return globalAssignments[i] === selectedSchool && t.school !== selectedSchool;
             });
 
-            if(count === 0) {
+            document.getElementById('inboundCountBadge').innerText = `${inboundTeachers.length} معلم/ة`;
+
+            if(inboundTeachers.length === 0) {
                 noMsg.classList.remove('hidden');
                 listContainer.parentElement.classList.add('hidden');
             } else {
                 noMsg.classList.add('hidden');
                 listContainer.parentElement.classList.remove('hidden');
+                
+                inboundTeachers.forEach((t, i) => {
+                    listContainer.innerHTML += `
+                        <tr class="hover:bg-amber-50 transition-colors border-b border-slate-100">
+                            <td class="p-4 text-xs text-slate-400 font-bold">${i + 1}</td>
+                            <td class="p-4 font-black text-slate-800">${t.name}</td>
+                            <td class="p-4 text-slate-600 font-bold">${t.subject}</td>
+                            <td class="p-4 text-primary font-bold text-sm">${t.school}</td>
+                        </tr>
+                    `;
+                });
             }
 
             modal.classList.remove('hidden');
         }
 
-        function openEdit(idx) {
-            editingRowIdx = idx;
+        function openEdit(displayIdx, globalIdx) {
+            editingRowIdx = displayIdx;
+            pendingTransferIdx = globalIdx;
             document.getElementById('modalEdit').classList.remove('hidden');
             updateModalList();
         }
@@ -387,20 +409,34 @@
             const list = document.getElementById('listSchools');
             list.innerHTML = '';
             
-            // جلب بيانات المعلم الذي يتم تعديله لضمان الالتزام بالقواعد عند التعديل اليدوي
             const row = document.querySelectorAll('#dataRows tr')[editingRowIdx];
             const homeText = row.children[2].innerText;
             const homeCluster = getCluster(homeText);
 
-            // تصفية المدارس المسموح النقل إليها يدوياً (نفس التجمع فقط)
             uniqueSchools.filter(s => {
                 const schoolCluster = getCluster(s);
                 return s.toLowerCase().includes(query) && schoolCluster === homeCluster;
             }).forEach(s => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-right p-4 hover:bg-slate-100 rounded-xl font-bold border-b transition-all text-slate-700 cursor-pointer";
-                btn.innerText = s;
-                btn.onclick = () => validateManualTransfer(s);
+                btn.className = "w-full text-right p-4 hover:bg-slate-100 rounded-xl font-bold border-b transition-all text-slate-700 cursor-pointer flex justify-between";
+                
+                // حساب عدد المسندين الحاليين لهذه المدرسة للتحذير من تجاوز السعة يدوياً
+                let currentAssignedCount = 0;
+                let originalCount = 0;
+                teachersList.forEach((t, i) => {
+                    if (t.school === s) originalCount++;
+                    if (globalAssignments[i] === s) currentAssignedCount++;
+                });
+                
+                const isFull = currentAssignedCount >= originalCount;
+                
+                btn.innerHTML = `
+                    <span>${s}</span>
+                    <span class="text-xs ${isFull ? 'text-red-500' : 'text-green-500'} font-bold">
+                        ${isFull ? 'ممتلئة' : 'متاح مقاعد'}
+                    </span>
+                `;
+                btn.onclick = () => validateManualTransfer(s, isFull);
                 list.appendChild(btn);
             });
             
@@ -409,22 +445,26 @@
             }
         }
 
-        function validateManualTransfer(targetSchool) {
+        function validateManualTransfer(targetSchool, isFull) {
             const rows = document.querySelectorAll('#dataRows tr');
             const currentSubject = rows[editingRowIdx].querySelector('.subject-val').innerText;
-            const hasOriginalSubject = teachersList.some(t => t.school === targetSchool && t.subject === currentSubject);
             
-            let hasEsnadSubject = false;
-            rows.forEach((row, idx) => {
-                if(idx !== editingRowIdx) {
-                    const assigned = row.querySelector('.cell-val').innerText;
-                    const subject = row.querySelector('.subject-val').innerText;
-                    if(assigned === targetSchool && subject === currentSubject) hasEsnadSubject = true;
-                }
+            let hasOriginalSubject = false;
+            let currentAssignedCount = 0;
+            let originalCount = 0;
+            
+            teachersList.forEach((t, i) => {
+                if (t.school === targetSchool && t.subject === currentSubject) hasOriginalSubject = true;
+                if (t.school === targetSchool) originalCount++;
+                if (globalAssignments[i] === targetSchool) currentAssignedCount++;
             });
 
-            if(hasOriginalSubject || hasEsnadSubject) {
-                pendingTransfer = targetSchool;
+            pendingTransfer = targetSchool;
+
+            if (isFull) {
+                document.getElementById('alertMsg').innerText = `المدرسة (${targetSchool}) استوفت عدد معلميها الأصلي! النقل إليها سيتجاوز سعتها القصوى. هل تريد التأكيد رغم ذلك؟`;
+                document.getElementById('customAlert').classList.remove('hidden');
+            } else if(hasOriginalSubject) {
                 document.getElementById('alertMsg').innerText = `المدرسة (${targetSchool}) تحتوي بالفعل على تخصص (${currentSubject}). هل تريد المتابعة؟`;
                 document.getElementById('customAlert').classList.remove('hidden');
             } else {
@@ -433,7 +473,7 @@
         }
 
         function confirmManualTransfer() {
-            if(pendingTransfer) executeTransfer(pendingTransfer);
+            if(pendingTransfer && pendingTransferIdx !== null) executeTransfer(pendingTransfer);
             hideAlert();
         }
 
@@ -443,6 +483,10 @@
         }
 
         function executeTransfer(schoolName) {
+            // تحديث التوزيع الشمولي
+            globalAssignments[pendingTransferIdx] = schoolName;
+            
+            // تحديث واجهة المستخدم فوراً
             const row = document.querySelectorAll('#dataRows tr')[editingRowIdx];
             const originalSchool = row.querySelector('.origin-marker').innerText;
             row.querySelector('.cell-val').innerText = schoolName;
