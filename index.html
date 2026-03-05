@@ -3,497 +3,505 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إسناد الذكي | مديرية قلقيلية</title>
+    <title>نظام توزيع الطوارئ - مديرية قلقيلية</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Tajawal', 'sans-serif'] },
-                    colors: { 
-                        primary: '#6b0101', // أحمر خمري أساسي
-                        secondary: '#8b0000', // أحمر داكن
-                        accent: '#af1d1d', 
-                        info: '#4a0101',
-                        surface: '#fdf2f2'
-                    }
+                    colors: { primary: '#6b0101', accent: '#d4af37' },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
                 }
             }
         }
     </script>
 
     <style>
-        body { background-color: #fffafa; font-family: 'Tajawal', sans-serif; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(107, 1, 1, 0.1); }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f6f9; }
+        .card-shadow { box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1); }
+        .status-label { font-size: 0.75rem; font-weight: bold; margin-top: 2px; }
+        .alert-animate { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        /* Glassy Burgundy Header Background */
-        .burgundy-glass-header {
-            background: linear-gradient(135deg, rgba(107, 1, 1, 0.9) 0%, rgba(139, 0, 0, 0.8) 100%);
-            backdrop-filter: blur(12px);
-            border-bottom: 3px solid rgba(255, 215, 0, 0.3); /* لمسة ذهبية خفيفة */
-        }
-
-        .teacher-card-focused {
-            max-width: 600px;
-            margin: 2rem auto;
-            border-radius: 2.5rem;
-            background: white;
-            box-shadow: 0 25px 50px -12px rgba(107, 1, 1, 0.15);
-            overflow: hidden;
-            animation: slideUp 0.5s ease-out forwards;
-            border: 1px solid rgba(107, 1, 1, 0.1);
-        }
-
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .custom-select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b0101'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: left 1rem center;
-            background-size: 1.2em;
-        }
-
-        .progress-bar {
-            height: 6px;
-            background: #f1e4e4;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #6b0101;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        /* Modal Styling */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(40, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-content {
-            background: white;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 2rem;
-            padding: 2rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            transform: scale(0.9);
-            transition: all 0.3s ease;
-            border: 1px solid rgba(107, 1, 1, 0.2);
-        }
-        .modal-overlay.active .modal-content { transform: scale(1); }
-
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; padding: 0; margin: 0; }
-            .print-container { width: 100%; margin: 0; padding: 20px; box-shadow: none !important; border: none !important; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd !important; padding: 12px; text-align: right; font-size: 11pt; }
-            th { background-color: #6b0101 !important; color: white !important; -webkit-print-color-adjust: exact; }
-            .page-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6b0101; padding-bottom: 10px; }
-            .print-logo { display: block; margin: 0 auto 10px auto; max-width: 150px; }
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #b8962d; }
     </style>
 </head>
-<body class="antialiased min-h-screen pb-20">
+<body class="antialiased">
 
-    <!-- Modal for Manual Assignment -->
-    <div id="assignmentModal" class="modal-overlay no-print">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-black text-primary">تعديل مدرسة الإسناد</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-primary"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <!-- Custom Alert Notification -->
+    <div id="customAlert" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] hidden">
+        <div class="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 alert-animate">
+            <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+            <div>
+                <p class="font-black" id="alertTitle">تنبيه تكرار تخصص!</p>
+                <p class="text-sm opacity-90" id="alertMsg"></p>
             </div>
-            <p id="modalTeacherName" class="text-sm font-bold text-slate-700 mb-4"></p>
-            <div class="mb-6">
-                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 mr-1">اختر المدرسة الجديدة:</label>
-                <select id="modalSchoolSelect" class="custom-select w-full bg-surface border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-primary">
-                </select>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="saveManualAssignment()" class="flex-1 bg-primary text-white py-3 rounded-xl font-black hover:bg-secondary transition-all shadow-md">حفظ التعديل</button>
-                <button onclick="closeModal()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black hover:bg-slate-200 transition-all">إلغاء</button>
-            </div>
+            <button onclick="confirmManualTransfer()" class="bg-white text-red-600 px-4 py-1 rounded-lg font-bold mr-4 cursor-pointer hover:bg-slate-100 transition-colors">تأكيد الإسناد</button>
+            <button onclick="hideAlert()" class="bg-black/20 px-4 py-1 rounded-lg font-bold cursor-pointer hover:bg-black/30 transition-colors">إلغاء</button>
         </div>
     </div>
 
     <!-- Header -->
-    <header class="no-print burgundy-glass-header text-white py-10 px-6 shadow-2xl relative overflow-hidden">
-        <div class="container mx-auto text-center relative z-10 flex flex-col items-center">
-            <!-- New Logo -->
-            <div class="bg-white p-2 rounded-2xl mb-4 shadow-xl">
-                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS68c-2G_AQVK-4DmgH6EJ_VBkDJ4Gz18NfkQ&s" alt="" class="h-28 object-contain">
+    <header class="no-print bg-primary text-white py-10 px-6 shadow-2xl relative overflow-hidden">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center relative z-10">
+            <div class="text-center md:text-right">
+                <h1 class="text-4xl font-black mb-2 tracking-tight">نظام توزيع الطوارئ الذكي</h1>
+                <p class="text-accent font-bold text-lg italic">مديرية التربية والتعليم - قلقيلية</p>
             </div>
-            
-            <h1 class="text-4xl font-black mb-4 tracking-tight">نظام إسناد المعلمين المطور</h1>
-            
-            <div class="bg-white/10 px-8 py-4 rounded-3xl backdrop-blur-md border border-white/20 shadow-inner">
-                <p class="text-white font-bold text-xl mb-1">مديرية التربية والتعليم - قلقيلية</p>
-                <p class="text-red-100 font-bold opacity-90 text-sm">قسم المتابعة الميدانية - أ. عبداللطيف رضوان</p>
+            <div class="mt-6 md:mt-0 flex gap-4">
+                <button onclick="document.getElementById('excelFile').click()" class="bg-white/10 hover:bg-white/20 border border-white/30 px-6 py-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer">
+                    <i class="fa-solid fa-file-excel text-accent text-2xl"></i>
+                    <span class="font-bold">رفع ملف المعلمين</span>
+                </button>
+                <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="hidden">
             </div>
         </div>
-        
-        <!-- Decoration circles -->
-        <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
-        <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-black/10 rounded-full blur-3xl"></div>
     </header>
 
-    <main class="container mx-auto p-4 md:p-8 -mt-8 relative z-20">
-        
-        <!-- Setup Section -->
-        <div class="no-print glass-card p-8 rounded-[2.5rem] shadow-xl mb-8 bg-white/95">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
-                
-                <!-- Upload Area -->
-                <div class="relative">
-                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">1. ملف البيانات (Excel):</label>
-                    <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden" multiple onchange="handleFileSelect(event)">
-                    <button onclick="document.getElementById('fileInput').click()" class="w-full bg-surface text-primary py-4 rounded-2xl font-black hover:bg-red-100 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-primary/20 shadow-sm">
-                        <i class="fa-solid fa-file-circle-plus text-xl"></i> رفع ملفات Excel
-                    </button>
-                    <div id="uploadTracker" class="hidden mt-4 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-1">
-                            <span id="trackerFileName" class="text-[10px] font-bold text-slate-500 truncate w-32">جاري المعالجة...</span>
-                            <span id="trackerPercent" class="text-[10px] font-black text-primary">0%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div id="trackerBar" class="progress-fill"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- School Select -->
-                <div id="schoolStep" class="opacity-40 pointer-events-none transition-all">
-                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">2. مدرسة العمل الأصلية:</label>
-                    <select id="schoolSelect" onchange="updateTeacherList()" class="custom-select w-full bg-white border-2 border-primary/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary shadow-sm text-primary">
-                        <option value="">-- اختر مدرسة العمل --</option>
-                    </select>
-                </div>
-
-                <!-- Teacher Select -->
-                <div id="teacherStep" class="opacity-40 pointer-events-none transition-all">
-                    <label class="block text-[10px] font-black text-primary/60 uppercase mb-3 mr-2">3. اختيار المعلم/ة:</label>
-                    <select id="teacherSelect" onchange="renderTeacherCard()" class="custom-select w-full bg-white border-2 border-primary/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-primary shadow-sm text-primary">
-                        <option value="">-- اختر الاسم --</option>
-                    </select>
-                </div>
-
+    <main class="no-print max-w-7xl mx-auto px-6 -mt-8 relative z-20">
+        <!-- Controls -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="md:col-span-2 bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex flex-col justify-center">
+                <label class="block text-slate-500 font-bold mb-2 mr-2 text-sm">تحديد مدرسة العمل الأصلية:</label>
+                <select id="schoolSelector" onchange="generateDistributionTable()" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 outline-none focus:border-primary font-black text-slate-700 transition-all cursor-pointer">
+                    <option value="">-- يرجى رفع ملف البيانات أولاً --</option>
+                </select>
             </div>
-            <div id="statusMsg" class="mt-4 text-center hidden p-3 rounded-xl bg-red-50 border border-red-100 text-primary font-bold text-sm"></div>
 
-            <!-- Auto Distribute Action -->
-            <div id="autoDistributeStep" class="mt-6 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center opacity-40 pointer-events-none transition-all">
-                <div class="mb-4 md:mb-0">
-                    <h4 class="font-black text-primary mb-1">توليد تقرير التوزيع الذكي لجميع المدارس</h4>
-                    <p class="text-xs text-slate-500">سيقوم النظام بربط كل معلم بأقرب مدرسة إسناد بناءً على السكن وتوليد التقرير الملون بالأحمر الخمري.</p>
-                </div>
-                <button onclick="autoDistributeAll()" class="w-full md:w-auto bg-primary text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-primary/20 hover:bg-secondary hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> تنفيذ التوزيع وتوليد التقرير
+            <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex items-end">
+                <button id="btnInbound" onclick="showInboundTeachers()" class="hidden w-full bg-white border-2 border-accent text-accent hover:bg-accent hover:text-white py-3 rounded-2xl font-black shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer">
+                    <i class="fa-solid fa-user-group text-lg"></i>
+                    <span>المُسندين إليها</span>
+                </button>
+            </div>
+
+            <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex items-end">
+                <button onclick="downloadPDF()" id="btnDownload" disabled class="w-full bg-accent hover:bg-amber-600 text-white py-3 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-30 cursor-pointer">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>تحميل (PDF)</span>
                 </button>
             </div>
         </div>
 
-        <!-- Single Card Result Area -->
-        <div id="cardDisplayArea" class="no-print min-h-[100px]">
-             <!-- Placeholder -->
-             <div id="placeholder" class="flex flex-col items-center justify-center py-10 opacity-20">
-                <i class="fa-solid fa-id-card-clip text-7xl text-primary"></i>
-                <p class="text-lg font-black mt-4 text-primary">يرجى اختيار معلم لعرض بطاقته</p>
-             </div>
+        <!-- Results Table -->
+        <div id="resultsTable" class="hidden mb-20">
+            <div class="bg-white rounded-3xl card-shadow overflow-hidden border border-slate-200">
+                <div class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                    <h3 class="font-black text-xl text-primary flex items-center gap-3">
+                        <i class="fa-solid fa-list-check"></i>
+                        جدول إسناد الطوارئ المعتمد
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center" id="dataViewTable">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-500 font-bold text-xs border-b">
+                                <th class="p-5">#</th>
+                                <th class="p-5 text-right">اسم المعلم/ة</th>
+                                <th class="p-5">مكان السكن</th>
+                                <th class="p-5">المدرسة الأصلية</th>
+                                <th class="p-5">التخصص</th>
+                                <th class="p-5 text-primary font-black bg-red-50/50">مدرسة الإسناد</th>
+                                <th class="p-5 no-print">تعديل</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataRows" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-
-        <!-- Distribution Report Area -->
-        <div id="distributionTableArea" class="hidden print-container"></div>
-
     </main>
 
+    <!-- Modal for Manual Transfer -->
+    <div id="modalEdit" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div class="bg-primary p-6 text-white font-black flex justify-between items-center">
+                <span>تعديل مدرسة الإسناد يدوياً</span>
+                <button onclick="closeEditModal()" class="text-2xl font-bold cursor-pointer hover:text-accent transition-colors">&times;</button>
+            </div>
+            <div class="p-6">
+                <input type="text" id="schoolSearcher" oninput="updateModalList()" placeholder="بحث عن مدرسة..." class="w-full p-4 border rounded-2xl mb-4 focus:ring-2 ring-primary outline-none text-right">
+                <div id="listSchools" class="max-h-60 overflow-y-auto space-y-2 text-right custom-scrollbar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Inbound Teachers -->
+    <div id="modalInbound" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-accent p-6 text-white font-black flex justify-between items-center flex-shrink-0">
+                <div class="flex items-center gap-3 text-lg">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>المعلمون المسندون لهذه المدرسة</span>
+                </div>
+                <button onclick="document.getElementById('modalInbound').classList.add('hidden')" class="text-3xl font-bold cursor-pointer hover:scale-110 transition-transform">&times;</button>
+            </div>
+            <div class="p-6 overflow-hidden flex flex-col">
+                <div id="inboundHeader" class="mb-4 p-4 bg-slate-100 rounded-2xl text-center font-black text-primary border-r-4 border-accent"></div>
+                <div class="overflow-y-auto border rounded-2xl custom-scrollbar border-slate-200">
+                    <table class="w-full text-right">
+                        <thead class="bg-slate-50 border-b sticky top-0 z-10">
+                            <tr>
+                                <th class="p-4 font-bold text-slate-500 text-sm">#</th>
+                                <th class="p-4 font-bold text-slate-500 text-sm">اسم المعلم</th>
+                                <th class="p-4 font-bold text-slate-500 text-sm">التخصص</th>
+                                <th class="p-4 font-bold text-slate-500 text-sm">المدرسة الأصلية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listInbound" class="divide-y text-slate-700"></tbody>
+                    </table>
+                    <div id="noInboundMsg" class="hidden p-16 text-center text-slate-400 italic font-bold">لا يوجد معلمون مسندون لهذه المدرسة حالياً</div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 border-t flex justify-end flex-shrink-0">
+                <button onclick="document.getElementById('modalInbound').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-8 py-2 rounded-xl font-bold transition-all cursor-pointer">إغلاق القائمة</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // التجمعات المعتمدة مع القواعد الصارمة لجينصافوط، جيت، والرماضين
         const CLUSTERS = {
-            "التجمع الأول (قلقيلية والخط الجنوبي)": ["قلقيلية", "حبلة", "الضبعة", "راس طيرة", "راس عطية", "عزبة سلمان", "عزون عتمة", "بيت أمين", "سنيريا", "كفرثلث", "عزون", "عزبة الطبيب", "عسلة", "النبي الياس"],
-            "التجمع الثاني (الخط الشمالي)": ["جيوس", "صير", "فلامية", "حجة", "كفر قدوم", "الفندق", "كفر لاقف"],
-            "التجمع الثالث": ["جيت", "جينصافوط"]
+            "قلقيلية والخط الجنوبي": ["قلقيلية", "حبلة", "الضبعة", "راس طيرة", "راس عطية", "عزبة سلمان", "عزون عتمة", "بيت أمين", "سنيريا", "كفر ثلث", "عزون", "عزبة الطبيب", "عسلة", "النبي الياس", "النبي إلياس"],
+            "الخط الشمالي": ["جيوس", "صير", "فلامية", "حجة", "كفر قدوم", "الفندق", "كفر لاقف", "باقة الحطب", "اماتين", "إماتين"],
+            "جيت": ["جيت"],
+            "جينصافوط": ["جينصافوط"],
+            "الرماضين": ["الرماضين"]
         };
 
-        let state = {
-            teachers: [],
-            allSchools: [],
-            schoolLocations: new Map(),
-            editingTeacherId: null
-        };
+        let teachersList = [];
+        let uniqueSchools = [];
+        let editingRowIdx = null;
+        let pendingTransfer = null;
 
-        const norm = (t) => t ? t.toString().trim().replace(/[أإآا]/g, "ا").replace(/[ةه]/g, "ه").replace(/[يى]/g, "ي") : "";
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                const uniqueTeachersMap = new Map();
+                rows.forEach(r => {
+                    const name = (r["الاسم"] || r["اسم المعلم"] || "").trim();
+                    if (!name) return;
+                    const school = (r["اسم المدرسة"] || r["المدرسة"] || "").trim();
+                    const home = (r["مكان السكن"] || r["السكن"] || "").trim();
+                    const subject = (r["التخصص"] || r["المبحث"] || "").trim();
+                    const uniqueKey = r["رقم الهوية"] || r["الهوية"] || name;
 
-        async function handleFileSelect(event) {
-            const files = event.target.files;
-            if (!files.length) return;
-            const tracker = document.getElementById('uploadTracker');
-            const trackerBar = document.getElementById('trackerBar');
-            const trackerName = document.getElementById('trackerFileName');
-            const trackerPercent = document.getElementById('trackerPercent');
-            tracker.classList.remove('hidden');
-            let totalFiles = files.length;
-            for (let i = 0; i < totalFiles; i++) {
-                let file = files[i];
-                trackerName.innerText = `جاري معالجة: ${file.name}`;
-                await processExcel(file);
-                let progress = Math.round(((i + 1) / totalFiles) * 100);
-                trackerBar.style.width = `${progress}%`;
-                trackerPercent.innerText = `${progress}%`;
-            }
-            setTimeout(() => {
-                tracker.classList.add('hidden');
-                finalizeData();
-            }, 500);
-        }
-
-        async function processExcel(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const data = new Uint8Array(ev.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
-                    json.forEach(row => {
-                        const keys = Object.keys(row);
-                        const find = (keywords) => {
-                            const k = keys.find(key => keywords.some(word => key.toString().includes(word)));
-                            return k ? row[k].toString().trim() : "";
-                        };
-                        const name = find(['الاسم', 'المعلم']);
-                        const school = find(['مدرسة', 'المدرسة الحالية']);
-                        const town = find(['سكن', 'العنوان', 'البلدة']);
-                        const spec = find(['تخصص', 'المبحث', 'المادة']);
-                        const location = find(['موقع', 'مكان المدرسة', 'البلدة الواقعة']);
-                        
-                        if (school && location && !name) {
-                            state.schoolLocations.set(norm(school), location);
-                        }
-                        if (name && name.length > 2) {
-                            state.teachers.push({
-                                id: find(['رقم', 'كود']) || Math.random().toString(36).substr(2, 5),
-                                name,
-                                currentSchool: school || "غير محدد",
-                                town: town || "غير محدد",
-                                spec: spec || "غير محدد",
-                                assigned: "بانتظار التحديد"
-                            });
-                        }
-                    });
-                    resolve();
-                };
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-        function finalizeData() {
-            const uniqueMap = new Map();
-            state.teachers.forEach(t => {
-                const key = `${norm(t.name)}-${norm(t.currentSchool)}`;
-                if (!uniqueMap.has(key)) uniqueMap.set(key, t);
-            });
-            state.teachers = Array.from(uniqueMap.values());
-            state.allSchools = [...new Set(state.teachers.map(t => t.currentSchool))].filter(s => s !== "غير محدد").sort();
-            
-            const sSelect = document.getElementById('schoolSelect');
-            sSelect.innerHTML = '<option value="">-- اختر مدرسة العمل --</option>';
-            state.allSchools.forEach(s => sSelect.add(new Option(s, s)));
-            
-            const mSelect = document.getElementById('modalSchoolSelect');
-            mSelect.innerHTML = '<option value="بانتظار التحديد">-- بانتظار التحديد --</option>';
-            state.allSchools.forEach(s => mSelect.add(new Option(s, s)));
-
-            document.getElementById('schoolStep').classList.remove('opacity-40', 'pointer-events-none');
-            document.getElementById('autoDistributeStep').classList.remove('opacity-40', 'pointer-events-none');
-            const msg = document.getElementById('statusMsg');
-            msg.innerHTML = `<i class="fa-solid fa-check-circle ml-2"></i> تم تحميل ${state.teachers.length} معلماً و ${state.allSchools.length} مدرسة بنجاح`;
-            msg.classList.remove('hidden');
-        }
-
-        function updateTeacherList() {
-            const school = document.getElementById('schoolSelect').value;
-            const tSelect = document.getElementById('teacherSelect');
-            tSelect.innerHTML = '<option value="">-- اختر الاسم --</option>';
-            if (school) {
-                const filtered = state.teachers.filter(t => t.currentSchool === school).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
-                filtered.forEach(t => tSelect.add(new Option(t.name, t.id)));
-                document.getElementById('teacherStep').classList.remove('opacity-40', 'pointer-events-none');
-            }
-        }
-
-        function openModal(teacherId) {
-            state.editingTeacherId = teacherId;
-            const t = state.teachers.find(x => x.id === teacherId);
-            document.getElementById('modalTeacherName').innerText = `المعلم/ة: ${t.name}`;
-            document.getElementById('modalSchoolSelect').value = t.assigned;
-            document.getElementById('assignmentModal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('assignmentModal').classList.remove('active');
-            state.editingTeacherId = null;
-        }
-
-        function saveManualAssignment() {
-            if (!state.editingTeacherId) return;
-            const newSchool = document.getElementById('modalSchoolSelect').value;
-            const t = state.teachers.find(x => x.id === state.editingTeacherId);
-            t.assigned = newSchool;
-            if(!document.getElementById('distributionTableArea').classList.contains('hidden')) renderDistributionReport();
-            if(document.getElementById('teacherSelect').value === state.editingTeacherId) renderTeacherCard();
-            closeModal();
-        }
-
-        function getClusterData(town) {
-            const nTown = norm(town);
-            for (const [clusterName, towns] of Object.entries(CLUSTERS)) {
-                if (towns.some(t => nTown.includes(norm(t)))) return { name: clusterName, towns };
-            }
-            return { name: "غير مصنف", towns: [] };
-        }
-
-        function autoDistributeAll() {
-            if (state.teachers.length === 0) return;
-            state.teachers.forEach(t => {
-                const cluster = getClusterData(t.town);
-                const suggestions = state.allSchools.filter(schoolName => {
-                    if (schoolName === t.currentSchool) return false;
-                    const nSchool = norm(schoolName);
-                    const loc = norm(state.schoolLocations.get(nSchool) || "");
-                    return cluster.towns.some(town => nSchool.includes(norm(town)) || loc.includes(norm(town)));
+                    if (!uniqueTeachersMap.has(uniqueKey)) {
+                        uniqueTeachersMap.set(uniqueKey, { name, school, home, subject });
+                    }
                 });
-                t.assigned = suggestions.length > 0 ? suggestions[0] : "لم يتم تحديد مدرسة قريبة";
-            });
-            renderDistributionReport();
-            document.getElementById('distributionTableArea').scrollIntoView({ behavior: 'smooth' });
+
+                teachersList = Array.from(uniqueTeachersMap.values());
+                uniqueSchools = [...new Set(teachersList.map(t => t.school).filter(Boolean))].sort();
+                
+                const selector = document.getElementById('schoolSelector');
+                selector.innerHTML = '<option value="">-- اختر مدرسة العمل الأصلية --</option>';
+                uniqueSchools.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s; opt.innerText = s;
+                    selector.appendChild(opt);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function getCluster(location) {
+            if(!location) return null;
+            for(let clusterName in CLUSTERS) {
+                if(CLUSTERS[clusterName].some(keyword => location.includes(keyword))) return clusterName;
+            }
+            return null;
         }
 
-        function renderDistributionReport() {
-            const area = document.getElementById('distributionTableArea');
-            area.classList.remove('hidden');
-            let rows = state.teachers.map((t, index) => `
-                <tr class="hover:bg-red-50/50 transition-colors border-b border-red-100">
-                    <td class="text-center font-bold no-print py-3 text-primary/70">${index + 1}</td>
-                    <td class="font-bold py-3 text-slate-800">${t.name}</td>
-                    <td class="py-3 text-slate-600">${t.currentSchool}</td>
-                    <td class="py-3 text-slate-600">${t.town}</td>
-                    <td class="text-primary font-black bg-red-50/30 py-3">${t.assigned}</td>
-                    <td class="no-print text-center py-3">
-                        <button onclick="openModal('${t.id}')" class="text-primary hover:text-secondary p-2 bg-red-50 rounded-lg shadow-sm border border-red-100">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-
-            area.innerHTML = `
-                <div class="glass-card p-10 rounded-[2.5rem] shadow-2xl mt-12 mb-20 bg-white border-2 border-primary/10">
-                    <div class="page-header relative">
-                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS68c-2G_AQVK-4DmgH6EJ_VBkDJ4Gz18NfkQ&s" alt="" class="print-logo hidden absolute top-0 right-0 h-20">
-                        <h2 class="text-3xl font-black text-primary mb-2">تقرير توزيع معلمي الإسناد</h2>
-                        <p class="text-slate-800 font-bold mb-1">مديرية التربية والتعليم - قلقيلية</p>
-                        <p class="text-primary/70 font-bold text-sm">قسم المتابعة الميدانية - أ. عبداللطيف رضوان</p>
-                    </div>
-
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
-                        <p class="text-slate-600 text-sm">إجمالي المعلمين المدرجين: <b class="text-primary">${state.teachers.length}</b></p>
-                        <button onclick="window.print()" class="bg-primary text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-secondary transition-all flex items-center gap-2">
-                            <i class="fa-solid fa-file-pdf"></i> طباعة كتقرير رسمي
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-2xl border border-red-100">
-                        <table class="w-full text-right border-collapse">
-                            <thead>
-                                <tr class="bg-primary text-white">
-                                    <th class="py-4 px-4 text-center no-print">#</th>
-                                    <th class="py-4 px-4">اسم المعلم/ة</th>
-                                    <th class="py-4 px-4">المدرسة الأصلية</th>
-                                    <th class="py-4 px-4">منطقة السكن</th>
-                                    <th class="py-4 px-4">المدرسة المسند إليها</th>
-                                    <th class="py-4 px-4 text-center no-print">إجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="mt-16 grid grid-cols-3 gap-8 text-center hidden print:grid">
-                        <div>
-                            <p class="font-black text-primary mb-10">رئيس قسم المتابعة الميدانية</p>
-                            <p class="font-bold text-slate-800">أ. عبداللطيف رضوان</p>
-                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-primary mb-10">المدير الإداري</p>
-                            <p class="font-bold text-slate-800">&nbsp;</p>
-                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
-                        </div>
-                        <div>
-                            <p class="font-black text-primary mb-10">مدير عام التربية والتعليم</p>
-                            <p class="font-bold text-slate-800">أ. أمين عواد</p>
-                            <div class="h-0 border-b-2 border-primary/20 mx-10 mt-2"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderTeacherCard() {
-            const id = document.getElementById('teacherSelect').value;
-            const area = document.getElementById('cardDisplayArea');
-            if (!id) { area.innerHTML = document.getElementById('placeholder').outerHTML; return; }
-            const t = state.teachers.find(x => x.id == id);
-            const cluster = getClusterData(t.town);
+        function generateDistributionTable() {
+            const selectedSchool = document.getElementById('schoolSelector').value;
+            const container = document.getElementById('resultsTable');
+            const tbody = document.getElementById('dataRows');
+            const btnInbound = document.getElementById('btnInbound');
             
-            area.innerHTML = `
-                <div class="teacher-card-focused shadow-2xl no-print border-2 border-primary/5">
-                    <div class="bg-primary p-8 text-white text-center relative overflow-hidden">
-                        <div class="absolute top-4 left-4 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black border border-white/20">${cluster.name}</div>
-                        <h2 class="text-2xl font-black mb-1">${t.name}</h2>
-                        <p class="text-red-100 text-xs font-bold opacity-80">${t.spec}</p>
-                        <div class="absolute -right-5 -bottom-5 w-20 h-20 bg-white/5 rounded-full"></div>
-                    </div>
-                    <div class="p-8 space-y-6">
-                        <div class="grid grid-cols-2 gap-4 text-center">
-                            <div class="bg-surface p-4 rounded-2xl border border-primary/10">
-                                <span class="block text-[10px] text-primary/50 font-black uppercase mb-1">المدرسة الأصلية</span>
-                                <span class="text-sm font-bold text-slate-800">${t.currentSchool}</span>
-                            </div>
-                            <div class="bg-surface p-4 rounded-2xl border border-primary/10">
-                                <span class="block text-[10px] text-primary/50 font-black uppercase mb-1">السكن</span>
-                                <span class="text-sm font-bold text-slate-800">${t.town}</span>
-                            </div>
-                        </div>
-                        <div class="bg-primary/5 rounded-3xl p-8 text-center border-2 border-primary/10 shadow-inner">
-                             <span class="block text-[10px] text-primary font-black mb-2 uppercase tracking-widest">المدرسة المنقول إليها (إسناد)</span>
-                             <h3 class="text-2xl font-black text-primary">${t.assigned}</h3>
-                        </div>
-                        <button onclick="openModal('${t.id}')" class="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm hover:bg-secondary transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20">
-                            <i class="fa-solid fa-list-ul"></i> تغيير مدرسة الإسناد
-                        </button>
+            if(!selectedSchool) {
+                container.classList.add('hidden');
+                btnInbound.classList.add('hidden');
+                document.getElementById('btnDownload').disabled = true;
+                return;
+            }
+
+            container.classList.remove('hidden');
+            btnInbound.classList.remove('hidden');
+            document.getElementById('btnDownload').disabled = false;
+            tbody.innerHTML = '';
+            
+            let esnadTracker = {}; 
+            const targetStaff = teachersList.filter(t => t.school === selectedSchool);
+
+            targetStaff.forEach((t, i) => {
+                let assignment = "";
+                
+                // القاعدة 1: معلمو الرماضين ممنوع نقلهم، والرماضين ممنوع نقل أحد إليها
+                const isRamadinSchool = t.school.includes("الرماضين");
+                const isRamadinHome = t.home.includes("الرماضين");
+                
+                // القاعدة 2: إذا كان مكان سكن المعلم نفس موقع مدرسته الأصلية ممنوع نقله
+                const isResidentMatch = t.school.includes(t.home) || t.home.includes(t.school);
+
+                // القاعدة 3 (الجديدة): إذا كان التجمع الخاص بسكن المعلم هو نفس تجمع مدرسته الأصلية، لا داعي لنقله (يبقى بمدرسته)
+                const homeCluster = getCluster(t.home);
+                const schoolClusterOriginal = getCluster(t.school);
+                const isSameClusterMatch = (homeCluster && schoolClusterOriginal && homeCluster === schoolClusterOriginal);
+
+                // تطبيق كافة استثناءات المنع
+                if (isRamadinSchool || isRamadinHome || isResidentMatch || isSameClusterMatch) {
+                    assignment = t.school;
+                } else {
+                    if (homeCluster) {
+                        // تصفية مدارس الإسناد المتاحة: يجب أن تكون في نفس التجمع حصراً
+                        const potentialSchools = uniqueSchools.filter(s => {
+                            const schoolCluster = getCluster(s);
+                            // منع النقل إلى الرماضين ومنع النقل خارج التجمع
+                            return schoolCluster === homeCluster && !s.includes("الرماضين");
+                        });
+
+                        // البحث عن أفضل مدرسة إسناد (تطابق تخصص)
+                        let bestSchool = potentialSchools.find(s => {
+                            const hasOriginalSubject = teachersList.some(teacher => teacher.school === s && teacher.subject === t.subject);
+                            const hasEsnadSubject = esnadTracker[`${s}_${t.subject}`];
+                            return !hasOriginalSubject && !hasEsnadSubject;
+                        });
+
+                        if (bestSchool) {
+                            assignment = bestSchool;
+                            esnadTracker[`${bestSchool}_${t.subject}`] = true;
+                        } else if (potentialSchools.length > 0) {
+                            // إذا لم نجد مدرسة ينقصها التخصص، نختار أول مدرسة في التجمع
+                            assignment = potentialSchools[0];
+                            esnadTracker[`${potentialSchools[0]}_${t.subject}`] = true;
+                        } else {
+                            // إذا لم توجد أي مدرسة في التجمع (مثلاً تجمع معزول) يبقى في مدرسته
+                            assignment = t.school;
+                        }
+                    } else {
+                        assignment = t.school; // يبقى في مدرسته إذا لم يعرف التجمع
+                    }
+                }
+
+                const isOriginal = assignment === t.school;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-5 text-slate-400 font-bold border-b border-slate-100">${i+1}</td>
+                        <td class="p-5 text-right font-black text-slate-800 border-b border-slate-100">${t.name}</td>
+                        <td class="p-5 text-slate-600 font-bold border-b border-slate-100">${t.home}</td>
+                        <td class="p-5 text-slate-500 font-bold border-b border-slate-100 origin-marker">${t.school}</td>
+                        <td class="p-5 text-slate-500 italic border-b border-slate-100 subject-val">${t.subject}</td>
+                        <td class="p-5 border-b border-red-100 bg-red-50/20">
+                           <div class="font-black text-primary cell-val">${assignment}</div>
+                           <div class="status-label ${isOriginal ? 'text-green-600' : 'text-amber-600'}">
+                               ${isOriginal ? '• في مدرسته' : '• منقول'}
+                           </div>
+                        </td>
+                        <td class="p-5 no-print border-b border-slate-100">
+                            <button onclick="openEdit(${i})" class="bg-primary/5 hover:bg-primary/10 text-primary w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function showInboundTeachers() {
+            const selectedSchool = document.getElementById('schoolSelector').value;
+            if(!selectedSchool) return;
+
+            const modal = document.getElementById('modalInbound');
+            const listContainer = document.getElementById('listInbound');
+            const noMsg = document.getElementById('noInboundMsg');
+            const header = document.getElementById('inboundHeader');
+
+            header.innerText = `المدرسة المُسند إليها: ${selectedSchool}`;
+            listContainer.innerHTML = '';
+            
+            const targetCluster = getCluster(selectedSchool);
+            let count = 0;
+
+            teachersList.forEach(t => {
+                const isRamadinHome = t.home.includes("الرماضين");
+                const isResidentMatch = t.school.includes(t.home) || t.home.includes(t.school);
+                
+                const homeCluster = getCluster(t.home);
+                const schoolClusterOriginal = getCluster(t.school);
+                const isSameClusterMatch = (homeCluster && schoolClusterOriginal && homeCluster === schoolClusterOriginal);
+
+                // التحقق من من يمكن إسناده لهذه المدرسة
+                if(!isRamadinHome && !isResidentMatch && !isSameClusterMatch && t.school !== selectedSchool) {
+                    // يجب أن يكون سكن المعلم من نفس تجمع مدرسة الإسناد
+                    if (homeCluster === targetCluster && !selectedSchool.includes("الرماضين")) {
+                        count++;
+                        listContainer.innerHTML += `
+                            <tr class="hover:bg-amber-50 transition-colors border-b border-slate-100">
+                                <td class="p-4 text-xs text-slate-400 font-bold">${count}</td>
+                                <td class="p-4 font-black text-slate-800">${t.name}</td>
+                                <td class="p-4 text-slate-600 font-bold">${t.subject}</td>
+                                <td class="p-4 text-primary font-bold text-sm">${t.school}</td>
+                            </tr>
+                        `;
+                    }
+                }
+            });
+
+            if(count === 0) {
+                noMsg.classList.remove('hidden');
+                listContainer.parentElement.classList.add('hidden');
+            } else {
+                noMsg.classList.add('hidden');
+                listContainer.parentElement.classList.remove('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function openEdit(idx) {
+            editingRowIdx = idx;
+            document.getElementById('modalEdit').classList.remove('hidden');
+            updateModalList();
+        }
+
+        function closeEditModal() { document.getElementById('modalEdit').classList.add('hidden'); }
+
+        function updateModalList() {
+            const query = document.getElementById('schoolSearcher').value.toLowerCase();
+            const list = document.getElementById('listSchools');
+            list.innerHTML = '';
+            
+            // جلب بيانات المعلم الذي يتم تعديله لضمان الالتزام بالقواعد عند التعديل اليدوي
+            const row = document.querySelectorAll('#dataRows tr')[editingRowIdx];
+            const homeText = row.children[2].innerText;
+            const homeCluster = getCluster(homeText);
+
+            // تصفية المدارس المسموح النقل إليها يدوياً (نفس التجمع فقط)
+            uniqueSchools.filter(s => {
+                const schoolCluster = getCluster(s);
+                return s.toLowerCase().includes(query) && schoolCluster === homeCluster;
+            }).forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-right p-4 hover:bg-slate-100 rounded-xl font-bold border-b transition-all text-slate-700 cursor-pointer";
+                btn.innerText = s;
+                btn.onclick = () => validateManualTransfer(s);
+                list.appendChild(btn);
+            });
+            
+            if (list.innerHTML === '') {
+                list.innerHTML = '<div class="p-4 text-center text-red-500 font-bold">لا توجد مدارس متاحة ضمن نفس تجمع المعلم</div>';
+            }
+        }
+
+        function validateManualTransfer(targetSchool) {
+            const rows = document.querySelectorAll('#dataRows tr');
+            const currentSubject = rows[editingRowIdx].querySelector('.subject-val').innerText;
+            const hasOriginalSubject = teachersList.some(t => t.school === targetSchool && t.subject === currentSubject);
+            
+            let hasEsnadSubject = false;
+            rows.forEach((row, idx) => {
+                if(idx !== editingRowIdx) {
+                    const assigned = row.querySelector('.cell-val').innerText;
+                    const subject = row.querySelector('.subject-val').innerText;
+                    if(assigned === targetSchool && subject === currentSubject) hasEsnadSubject = true;
+                }
+            });
+
+            if(hasOriginalSubject || hasEsnadSubject) {
+                pendingTransfer = targetSchool;
+                document.getElementById('alertMsg').innerText = `المدرسة (${targetSchool}) تحتوي بالفعل على تخصص (${currentSubject}). هل تريد المتابعة؟`;
+                document.getElementById('customAlert').classList.remove('hidden');
+            } else {
+                executeTransfer(targetSchool);
+            }
+        }
+
+        function confirmManualTransfer() {
+            if(pendingTransfer) executeTransfer(pendingTransfer);
+            hideAlert();
+        }
+
+        function hideAlert() {
+            document.getElementById('customAlert').classList.add('hidden');
+            pendingTransfer = null;
+        }
+
+        function executeTransfer(schoolName) {
+            const row = document.querySelectorAll('#dataRows tr')[editingRowIdx];
+            const originalSchool = row.querySelector('.origin-marker').innerText;
+            row.querySelector('.cell-val').innerText = schoolName;
+            
+            const label = row.querySelector('.status-label');
+            if (schoolName === originalSchool) {
+                label.innerText = "• في مدرسته";
+                label.className = "status-label text-green-600";
+            } else {
+                label.innerText = "• منقول";
+                label.className = "status-label text-amber-600";
+            }
+            closeEditModal();
+        }
+
+        function downloadPDF() {
+            const schoolName = document.getElementById('schoolSelector').value;
+            const btn = document.getElementById('btnDownload');
+            btn.disabled = true;
+
+            const element = document.createElement('div');
+            element.style.padding = '30px';
+            element.style.direction = 'rtl';
+            element.style.fontFamily = 'Cairo, sans-serif';
+
+            element.innerHTML = `
+                <div style="text-align: center; border-bottom: 3px solid #6b0101; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h1 style="color: #6b0101; font-size: 22px; margin: 0; font-weight: 900;">نظام توزيع الطوارئ الذكي</h1>
+                    <h2 style="font-size: 14px; margin: 5px 0; color: #333;">مديرية التربية والتعليم - قلقيلية</h2>
+                    <div style="margin-top: 10px; font-weight: bold; background: #f1f5f9; padding: 10px; border-radius: 8px;">
+                        تقرير إسناد مدرسة: ${schoolName}
                     </div>
                 </div>
             `;
+
+            const table = document.getElementById('dataViewTable').cloneNode(true);
+            table.querySelectorAll('.no-print').forEach(el => el.remove());
+            table.querySelectorAll('th, td').forEach(cell => {
+                cell.style.border = '1px solid #000';
+                cell.style.padding = '8px';
+                cell.style.fontSize = '10pt';
+                cell.style.textAlign = 'center';
+            });
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            
+            element.appendChild(table);
+            element.innerHTML += `
+                <div style="margin-top: 40px; text-align: left; padding-left: 40px;">
+                    <p style="font-weight: bold; margin: 0; font-size: 14px;">مدير التربية والتعليم</p>
+                    <p style="color: #6b0101; font-weight: bold; margin-top: 5px; font-size: 16px;">أ. عبد اللطيف رضوان</p>
+                </div>
+            `;
+
+            html2pdf().set({
+                margin: [0.5, 0.3, 0.5, 0.3],
+                filename: `تقرير_إسناد_${schoolName}.pdf`,
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+            }).from(element).save().then(() => btn.disabled = false);
         }
     </script>
 </body>
